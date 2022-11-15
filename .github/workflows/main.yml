@@ -1,0 +1,78 @@
+name: Coder
+on:
+  workflow_dispatch:
+
+jobs:
+  coder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+            ssh-private-key: ${{ secrets.SSH_KEY }}
+            
+      - name: Prepare Backup
+        run: |
+          mkdir -p ~/workspaces/ai-arts
+          mkdir -p ~/.local/share/code-server
+            
+      - name: Download Backups
+        run: |
+          curl -OL https://github.com/fkunn1326/github-ci/releases/download/coder/cache.zip
+          curl -OL https://github.com/fkunn1326/github-ci/releases/download/coder/source.zip
+        
+      - name: Expand Backups
+        run: |
+          unzip -P ${{secrets.ZIP_PASSWORD}} cache.zip -d ~/.local/share/code-server
+          unzip -P ${{secrets.ZIP_PASSWORD}} source.zip -d ~/workspaces/ai-arts
+          
+      - name: Delete Backups
+        run: |
+          rm -rf cache.zip
+          rm -rf source.zip
+        
+      - run: ls
+
+      - name: Run code-server
+        timeout-minutes: 300
+        run: |
+          git config --global user.email "${GITHUB_ACTOR}"
+          git config --global user.name "${GITHUB_ACTOR}@users.noreply.github.com"
+          curl -fsSL https://code-server.dev/install.sh | sh
+          curl -OL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          touch ./cert.pem
+          
+          cat <<EOL >> ./cert.pem
+          ${{secrets.CF_CERT}}
+          EOL
+          
+          cat <<EOL >> ./config.yml
+          ${{secrets.CF_YAML}}
+          EOL
+          cat <<EOL >> ./af573896-2e34-45cd-9037-1bbb9138bd27.json
+          ${{secrets.CF_CFG}}
+          EOL
+          cat <<EOL >> ./code-server.yaml
+          ${{secrets.CODE_SECRET}}
+          EOL
+          
+          code-server --version
+          code-server --config=./code-server.yaml ~/workspaces/ai-arts & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run coder
+      - name: Compress Artifact
+        if: failure()
+        run: |
+          cd ~/workspaces/ai-arts
+          zip -er --password=${{secrets.ZIP_PASSWORD}} ${GITHUB_WORKSPACE}/source.zip * .[^.]*
+          cd ~/.local/share/code-server
+          zip -er --password=${{secrets.ZIP_PASSWORD}} ${GITHUB_WORKSPACE}/cache.zip * .[^.]*
+          cd ${GITHUB_WORKSPACE}
+          
+      - name: Upload Artifact
+        if: failure()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            source.zip
+            cache.zip
+          tag_name: coder
