@@ -58,7 +58,7 @@ jobs:
           EOL
           
           code-server --version
-          code-server --config=./code-server.yaml ~/workspaces/supabase-chat & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run coder
+          code-server --config=./code-server.yaml ~/workspaces/supabase-chat & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run chat
       - name: Compress Artifact
         if: failure()
         run: |
