@@ -23,8 +23,8 @@ jobs:
         
       - name: Expand Backups
         run: |
-          unzip -P ${{secrets.ZIP_PASSWORD}} cache.zip -d ~/.local/share/code-server
-          unzip -P ${{secrets.ZIP_PASSWORD}} source.zip -d ~/workspaces/supabase-chat
+          unzip -P ${{secrets.ZIP_PASSWORD}} cache-1.zip -d ~/.local/share/code-server
+          unzip -P ${{secrets.ZIP_PASSWORD}} source-1.zip -d ~/workspaces/supabase-chat
           
       - name: Delete Backups
         run: |
