@@ -1,0 +1,78 @@
+name: Mydon
+on:
+  workflow_dispatch:
+
+jobs:
+  coder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.5.4
+        with:
+            ssh-private-key: ${{ secrets.SSH_KEY }}
+            
+      - name: Prepare Backup
+        run: |
+          mkdir -p ~/workspaces/supabase-chat
+          mkdir -p ~/.local/share/code-server
+            
+      - name: Download Backups
+        run: |
+          curl -OL https://github.com/totoa553/cloud/releases/download/coder/cache-1.zip
+          curl -OL https://github.com/totoa553/cloud/releases/download/coder/source-1.zip
+        
+      - name: Expand Backups
+        run: |
+          unzip -P ${{secrets.ZIP_PASSWORD}} cache.zip -d ~/.local/share/code-server
+          unzip -P ${{secrets.ZIP_PASSWORD}} source.zip -d ~/workspaces/supabase-chat
+          
+      - name: Delete Backups
+        run: |
+          rm -rf cache-1.zip
+          rm -rf source-1.zip
+        
+      - run: ls
+
+      - name: Run code-server
+        timeout-minutes: 300
+        run: |
+          git config --global user.email "${GITHUB_ACTOR}"
+          git config --global user.name "${GITHUB_ACTOR}"
+          curl -fsSL https://code-server.dev/install.sh | sh
+          curl -OL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+          sudo dpkg -i cloudflared-linux-amd64.deb
+          touch ./cert.pem
+          
+          cat <<EOL >> ./cert.pem
+          ${{secrets.CF_CERT_1}}
+          EOL
+          
+          cat <<EOL >> ./config.yml
+          ${{secrets.CF_YAML_1}}
+          EOL
+          cat <<EOL >> ./9fb281a6-8bef-4191-84fc-ccda0f49d776.json
+          ${{secrets.CF_CFG_1}}
+          EOL
+          cat <<EOL >> ./code-server.yaml
+          ${{secrets.CODE_SECRET}}
+          EOL
+          
+          code-server --version
+          code-server --config=./code-server.yaml ~/workspaces/supabase-chat & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run chat
+      - name: Compress Artifact
+        if: failure()
+        run: |
+          cd ~/workspaces
+          zip -er --password=${{secrets.ZIP_PASSWORD}} ${GITHUB_WORKSPACE}/source-1.zip * .[^.]*
+          cd ~/.local/share/code-server
+          zip -er --password=${{secrets.ZIP_PASSWORD}} ${GITHUB_WORKSPACE}/cache-1.zip * .[^.]*
+          cd ${GITHUB_WORKSPACE}
+          
+      - name: Upload Artifact
+        if: failure()
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            source-1.zip
+            cache-1.zip
+          tag_name: coder
