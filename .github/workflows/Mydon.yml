@@ -13,7 +13,7 @@ jobs:
             
       - name: Prepare Backup
         run: |
-          mkdir -p ~/workspaces/supabase-chat
+          mkdir -p ~/workspaces
           mkdir -p ~/.local/share/code-server
             
       - name: Download Backups
@@ -24,7 +24,7 @@ jobs:
       - name: Expand Backups
         run: |
           unzip -P ${{secrets.ZIP_PASSWORD}} cache-1.zip -d ~/.local/share/code-server
-          unzip -P ${{secrets.ZIP_PASSWORD}} source-1.zip -d ~/workspaces/supabase-chat
+          unzip -P ${{secrets.ZIP_PASSWORD}} source-1.zip -d ~/workspaces
           
       - name: Delete Backups
         run: |
@@ -58,7 +58,7 @@ jobs:
           EOL
           
           code-server --version
-          code-server --config=./code-server.yaml ~/workspaces/supabase-chat & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run chat
+          code-server --config=./code-server.yaml ~/workspacest & cloudflared tunnel --origincert=./cert.pem --config=./config.yml --loglevel=panic run mydon
       - name: Compress Artifact
         if: failure()
         run: |
